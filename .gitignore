@@ -8,3 +8,5 @@ gpt3_assistant.egg-info
 __pycache__/
 .coverage
 temp.mp3
+run.txt
+..vscode/launch.json
