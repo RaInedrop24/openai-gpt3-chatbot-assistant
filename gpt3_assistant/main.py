@@ -26,7 +26,7 @@ class Main:
 
         try:
             text = self._speech_listener.listen_for_speech(
-                device_name=self.input_device_name
+                device_name=self._input_device_name
             )
         except CouldNotUnderstandSpeechError as e:
             logging.error(e)
@@ -52,20 +52,21 @@ class Main:
 
         logging.info(f"Open AI Response: {response_text}")
 
-        self.computer_voice.speak(response_text)
+        self._computer_voice.speak(response_text)
 
         if not response.was_cut_short():
             logging.debug("Starting to listen again...")
             self.start_conversation()
 
         # If the response was cut short, let the user know they hit the max token limit
-        self.computer_voice.speak(
+        self._computer_voice.speak(
             "I apologize, but I ran out of tokens to finish my response."
         )
 
     def cleanup_and_exit(self):
         logging.debug("Making sure temp files are cleaned up...")
-        self.computer_voice.cleanup_temp_files()
+        ComputerVoice.cleanup_temp_files()
+        # self._computer_voice.cleanup_temp_files()
         logging.debug("Closing conversation...")
         sys.exit(0)
 

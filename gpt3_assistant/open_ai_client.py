@@ -1,5 +1,6 @@
 import openai
-from gpt3_assistant.models.exchange import Exchange
+from models.exchange import Exchange
+
 import logging
 
 
@@ -44,7 +45,8 @@ class OpenAIClient:
         was_cut_short = False
 
         if len(choices) == 0:
-            raise Exception(f"No choices returned from Open AI for prompt: {prompt}")
+            raise Exception(
+                f"No choices returned from Open AI for prompt: {prompt}")
 
         first_choice = completion["choices"][0]
 

@@ -2,6 +2,9 @@ import os
 import gtts
 import subprocess
 import logging
+from io import BytesIO
+import time
+from playsound import playsound
 
 
 class ComputerVoice:
@@ -19,15 +22,19 @@ class ComputerVoice:
         except Exception as e:
             logging.error(f"Error cleaning up ComputerVoice context: {e}")
 
+    # def cleanup_temp_files(self):
+    #     os.remove(self._mp3_filename)
+
     def speak(self, text_to_speak: str):
         logging.debug(f"ComputerVoice.speak - '{text_to_speak}'")
+
         tts = self.get_gtts(text_to_speak)
         tts.save(self._mp3_filename)
         full_mp3_path = os.path.join(os.getcwd(), self._mp3_filename)
-        subprocess.call(["afplay", full_mp3_path])
+        playsound(full_mp3_path)
 
-    def cleanup_temp_files(self):
-        logging.debug(f"ComputerVoice.cleanup_temp_files - {self._mp3_filename}")
+        logging.debug(
+            f"ComputerVoice.cleanup_temp_files - {self._mp3_filename}")
         os.remove(self._mp3_filename)
 
     def get_gtts(self, text_to_speak: str):
@@ -46,7 +53,8 @@ class ComputerVoice:
                     text_to_speak, lang=self._language, tld=self._top_level_domain
                 )
             else:
-                logging.debug("Using default language: English (United States)")
+                logging.debug(
+                    "Using default language: English (United States)")
                 gtts_instance = gtts.gTTS(text_to_speak)
 
             exception_thrown = False
