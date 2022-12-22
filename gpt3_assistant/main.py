@@ -65,8 +65,8 @@ class Main:
 
     def cleanup_and_exit(self):
         logging.debug("Making sure temp files are cleaned up...")
-        ComputerVoice.cleanup_temp_files()
-        # self._computer_voice.cleanup_temp_files()
+        # ComputerVoice.cleanup_temp_files()
+        self._computer_voice.cleanup_temp_files()
         logging.debug("Closing conversation...")
         sys.exit(0)
 
