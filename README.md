@@ -1,4 +1,7 @@
-# OpenAI GPT-3 Chatbot Assistant
+# OpenAI GPT-3 Chatbot
+
+![GitHub Actions Build Status](https://github.com/jakecyr/openai-gpt3-chatbot/actions/workflows/test-application.yml/badge.svg)
+
 
 A simple interface to the OpenAI GPT-3 models with speech
 to text for input and text to speech for the output from OpenAI.
@@ -40,10 +43,10 @@ include_dirs=<PATH FROM STEP 3>/include/
 library_dirs=<PATH FROM STEP 3>/lib/
 ```
 
-Finally run:
+Finally, run the following to install all required Python packages:
 
 ```bash
-pip install -r requirements.txt
+pip install -e .
 ```
 
 ## Running the Script
@@ -62,7 +65,7 @@ Say the word "exit" to stop the application.
 Specify both the `LANGUAGE` and `TOP_LEVEL_DOMAIN` vars to override the default English (United States)
 
 ```bash
-LANGUAGE=<Language code> TOP_LEVEL_DOMAIN=<Top-level domain> python gpt3_assistant/main.py --open-ai-key=<OPENAI_KEY>
+python gpt3_assistant/main.py --open-ai-key=<OPENAI_KEY> --lang=en --tld=com
 ```
 
 #### Language Examples
@@ -82,33 +85,35 @@ See Localized 'accents' section on gTTS docs for more information
 
 [SpeechRecognition library docs](https://pypi.org/project/SpeechRecognition/1.2.3)
 
-[Google Translate's Text-to-Speech API (gTTS)](https://gtts.readthedocs.io/en/latest/module.html#)
+[Google Translate Text-to-Speech API (gTTS)](https://gtts.readthedocs.io/en/latest/module.html#)
 
 ## Linting
+
+Sort all imports with:
+
+```bash
+isort --multi-line 3 --profile black --python-version 38 gpt3_assistant
+```
 
 Run `black gpt3_assistant` to automatically reformat all source files
 based on the default configuration.
 
 ## Testing
 
-The project has to be installed as a module first with:
+### Unit Tests
 
-```commandline
- pip install -e .
-```
-
-Then you can run `python -m pytest` to run all unit tests.
+Run `pytest` to run all unit tests.
 
 ### Coverage Report
 
 Get the coverage with:
 
 ```bash
-coverage run -m pytest
+coverage run -m pytest tests
 ```
 
 View the coverage report:
 
 ```bash
-coverage report
+coverage report --fail-under=90 --include="gpt3_assistant/*"
 ```

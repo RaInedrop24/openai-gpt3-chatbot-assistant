@@ -1,115 +1,60 @@
-import sys
-import os
-import signal
-from computer_voice import ComputerVoice
-from open_ai_client import OpenAIClient
-from speech_listener import SpeechListener
-import logging
-from exceptions.SpeechRecognitionRequestError import SpeechRecognitionRequestError
-from exceptions.CouldNotUnderstandSpeechError import CouldNotUnderstandSpeechError
-import argparse
-
-lang = os.getenv("LANGUAGE")
-tld = os.getenv("TOP_LEVEL_DOMAIN")
-previous_responses = []
-
-
-class Main:
-    def __init__(self, open_ai_key, input_device_name):
-        self._open_ai_client = OpenAIClient(open_ai_key)
-        self._input_device_name = input_device_name
-        self._computer_voice = ComputerVoice("temp.mp3", lang, tld)
-        self._speech_listener = SpeechListener()
-
-    def start_conversation(self):
-        text: str = None
-
-        try:
-            text = self._speech_listener.listen_for_speech(
-                device_name=self._input_device_name
-            )
-        except CouldNotUnderstandSpeechError as e:
-            logging.error(e)
-        except SpeechRecognitionRequestError as e:
-            logging.error(e)
-            self.cleanup_and_exit()
-
-        if text == "Exit" or text == "exit":
-            self.cleanup_and_exit()
-
-        if text is None or len(text) <= 1:
-            self.start_conversation()
-
-        response = self._open_ai_client.get_completion(
-            prompt=text,
-            previous_exchanges=previous_responses,
-            model="text-davinci-003",
-            max_tokens=200,
-        )
-
-        previous_responses.append(response)
-        response_text = response.get_computer_response()
-
-        logging.info(f"Open AI Response: {response_text}")
-
-        self._computer_voice.speak(response_text)
-
-        if not response.was_cut_short():
-            logging.debug("Starting to listen again...")
-            self.start_conversation()
-
-        # If the response was cut short, let the user know they hit the max token limit
-        self._computer_voice.speak(
-            "I apologize, but I ran out of tokens to finish my response."
-        )
-
-    def cleanup_and_exit(self):
-        logging.debug("Making sure temp files are cleaned up...")
-        # ComputerVoice.cleanup_temp_files()
-        self._computer_voice.cleanup_temp_files()
-        logging.debug("Closing conversation...")
-        sys.exit(0)
-
-
-def get_command_line_arguments():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--log-level",
-        help="If to print at the debug level or not.",
-        default="INFO",
-        type=str,
-    )
-    parser.add_argument(
-        "--input-device-name", help="Input device name", default=None, type=str
-    )
-    parser.add_argument(
-        "--open-ai-key", help="Open AI Secret Key", required=True, type=str
-    )
-    return parser.parse_args()
-
-
-def set_logging_level(level_name):
-    numeric_level = getattr(logging, level_name.upper(), None)
-    if not isinstance(numeric_level, int):
-        raise ValueError("Invalid log level: %s" % level_name)
-    logging.basicConfig(level=numeric_level)
-
+from gpt3_assistant.bases.listener import Listener
+from gpt3_assistant.bases.options_parser import OptionsParser
+from gpt3_assistant.bases.text_generator import TextGenerator
+from gpt3_assistant.bases.text_to_speech_client import TextToSpeechClient
+from gpt3_assistant.clients.google_text_to_speech_client import GoogleTextToSpeechClient
+from gpt3_assistant.command_line_parser import CommandLineParser
+from gpt3_assistant.computer_voice_responder import ComputerVoiceResponder
+from gpt3_assistant.conversation import Conversation
+from gpt3_assistant.helpers.get_input_device_from_user import get_input_device_from_user
+from gpt3_assistant.helpers.set_keyboard_interrupt_handler import (
+    set_keyboard_interrupt_handler,
+)
+from gpt3_assistant.helpers.set_log_level import set_log_level
+from gpt3_assistant.input_devices import InputDevices
+from gpt3_assistant.models.input_device import InputDevice
+from gpt3_assistant.open_ai_text_generator import OpenAITextGenerator
+from gpt3_assistant.speech_listener import SpeechListener
 
 if __name__ == "__main__":
-    args = get_command_line_arguments()
-    log_level = args.log_level
-    set_logging_level(log_level)
+    options_parser: OptionsParser = CommandLineParser()
 
-    input_device_name = args.input_device_name if "input_device_name" in args else None
+    # parse the options passed in from the user
+    options = options_parser.parse()
 
-    if not args.open_ai_key:
-        logging.error("missing open-ai-key CLI")
-        sys.exit(1)
+    # set log level from CLI options
+    set_log_level(options.log_level)
 
-    main = Main(args.open_ai_key, input_device_name)
+    # get all input devices on the current machine
+    input_devices: list[InputDevice] = InputDevices.get_list_of_input_devices()
 
-    def signal_handler(_sig, _frame):
-        main.cleanup_and_exit()
+    # ask the user which input device to use for this session
+    input_device: InputDevice = get_input_device_from_user(
+        input_devices=input_devices, input_device_name=options.input_device_name
+    )
 
-    signal.signal(signal.SIGINT, signal_handler)
-    main.start_conversation()
+    # service to listen for speech and convert it to text
+    listener: Listener = SpeechListener(input_device)
+
+    # service to generate text given an input
+    text_generator: TextGenerator = OpenAITextGenerator(options.open_ai_key)
+
+    # client to create speech from a given text
+    text_to_speech_client: TextToSpeechClient = GoogleTextToSpeechClient(
+        options.lang, options.tld
+    )
+
+    # service to respond to the user the generated text
+    responder = ComputerVoiceResponder(text_to_speech_client, "temp.mp3")
+
+    # set interrupt to exit the process when Cmd+C / Ctrl+C is hit
+    set_keyboard_interrupt_handler()
+
+    conversation = Conversation(
+        listener=listener,
+        text_generator=text_generator,
+        responder=responder,
+        safe_word=options.safe_word,
+    )
+
+    conversation.start_conversation()
